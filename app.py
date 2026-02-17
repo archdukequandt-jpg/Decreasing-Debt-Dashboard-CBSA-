@@ -4,7 +4,7 @@ from pathlib import Path
 st.set_page_config(page_title="CBSA Household Debt Dashboard", layout="wide")
 
 st.sidebar.title("CBSA Debt Dashboard")
-page = st.sidebar.radio("Page", ["Home", "Debt & Population"], index=0)
+page = st.sidebar.radio("Page", ["Home", "Debt & Population"], index=0, key="page_select")
 
 APP_DIR = Path(__file__).resolve().parent
 DATA_FILE = APP_DIR / "cbsa_population_debt_merged.csv"
@@ -210,9 +210,10 @@ def render_debt_population():
         "Section",
         ["Overview", "Top CBSAs", "Debt trends", "Growth & divergence", "Data explorer"],
         index=0,
+        key="debt_section"
     )
     
-    top_n = st.sidebar.slider("Top N", min_value=5, max_value=50, value=15, step=1)
+    top_n = st.sidebar.slider("Top N", min_value=5, max_value=50, value=15, step=1, key="top_n")
     
     years = sorted(df["year"].dropna().astype(int).unique().tolist())
     qtrs = sorted(df["qtr"].dropna().astype(int).unique().tolist())
@@ -276,7 +277,7 @@ def render_debt_population():
         rank_year = st.sidebar.selectbox("Rank year", options=years, index=len(years) - 1)
         rank_qtr = st.sidebar.selectbox("Rank quarter", options=qtrs, index=len(qtrs) - 1)
     
-        metric_mode = st.sidebar.selectbox("Metric", ["Midpoint (mid)", "Low", "High"], index=0)
+        metric_mode = st.sidebar.selectbox("Metric", ["Midpoint (mid, key="metric_select")", "Low", "High"], index=0)
         per_capita = st.sidebar.checkbox("Normalize by population (per 1,000 residents)", value=False)
     
         snap = df[(df["year"] == rank_year) & (df["qtr"] == rank_qtr)].copy()
