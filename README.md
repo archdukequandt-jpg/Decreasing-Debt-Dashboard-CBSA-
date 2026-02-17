@@ -1,4 +1,5 @@
 # CBSA Household Debt Dashboard (Streamlit)
+# https://decreasing-debt-dashboard-cbsa.streamlit.app/
 
 This dashboard is a lightweight Streamlit app for exploring **household debt ranges** (`low` / `high`)
 by **CBSA** across **year/quarter**, optionally normalized by **2022 population**.
