@@ -161,29 +161,49 @@ def render_debt_population():
         return fig
     
     
-    def make_growth_scatter(growth_df: pd.DataFrame, title: str, label_top: int = 12):
-        fig, ax = plt.subplots()
-        x = growth_df["pop_cagr"].to_numpy()
-        y = growth_df["debt_cagr"].to_numpy()
-        ax.scatter(x, y)
-    
-        ax.axhline(0, linewidth=1.0)
-        ax.axvline(0, linewidth=1.0)
-    
-        ax.set_title(title)
-        ax.set_xlabel("Population CAGR")
-        ax.set_ylabel("Debt CAGR")
-        ax.grid(True, linestyle="--", linewidth=0.5, alpha=0.6)
-    
-        # Label the most divergent points (by absolute gap)
-        lab = growth_df.copy()
-        lab["gap"] = (lab["debt_cagr"] - lab["pop_cagr"]).abs()
-        lab = lab.dropna(subset=["debt_cagr", "pop_cagr"]).sort_values("gap", ascending=False).head(label_top)
-        for _, r in lab.iterrows():
-            ax.annotate(str(r["CBSA_NAME"]), (r["pop_cagr"], r["debt_cagr"]), fontsize=8)
-    
-        fig.tight_layout()
-        return fig
+    def make_growth_scatter_plotly(growth_df: pd.DataFrame, title: str):
+        """
+        Interactive scatter using Plotly.
+        - Hover shows CBSA name + CAGR values
+        - A selectbox lets the user focus a specific CBSA and view its details
+        """
+        import plotly.express as px
+
+        dfp = growth_df.copy()
+        # Convert to percent for display
+        dfp["Debt CAGR (%)"] = (dfp["debt_cagr"] * 100.0)
+        dfp["Pop CAGR (%)"] = (dfp["pop_cagr"] * 100.0)
+        dfp["Gap (pp)"] = (dfp["gap_debt_minus_pop"] * 100.0)
+
+        dfp = dfp.dropna(subset=["Debt CAGR (%)", "Pop CAGR (%)"]).copy()
+
+        fig = px.scatter(
+            dfp,
+            x="Pop CAGR (%)",
+            y="Debt CAGR (%)",
+            color="bucket",
+            hover_name="CBSA_NAME",
+            hover_data={
+                "cbsa": True,
+                "Debt CAGR (%)": ":.2f",
+                "Pop CAGR (%)": ":.2f",
+                "Gap (pp)": ":.2f",
+                "bucket": True,
+            },
+            title=title,
+        )
+
+        # Reference lines
+        fig.add_hline(y=0)
+        fig.add_vline(x=0)
+
+        fig.update_layout(
+            height=650,
+            margin=dict(l=10, r=10, t=60, b=10),
+            legend_title_text="Bucket",
+        )
+
+        return fig, dfp
     
     st.title("Debt & Population")
     
@@ -208,7 +228,7 @@ def render_debt_population():
     
     section = st.sidebar.radio(
         "Section",
-        ["Overview", "Top CBSAs", "Debt trends", "Growth & divergence", "Data explorer"],
+        ["Overview", "Debt trends", "Growth & divergence", "Data explorer"],
         index=0,
         key="debt_section"
     )
@@ -270,64 +290,6 @@ def render_debt_population():
     
     # ---------------------------------------------
     # Top CBSAs
-    # ---------------------------------------------
-    elif section == "Top CBSAs":
-        st.subheader("Top CBSAs by debt (midpoint)")
-    
-        # Choose a specific period to rank
-        rank_year = st.sidebar.selectbox("Rank year", options=years, index=len(years) - 1, key="rank_year")
-        rank_qtr = st.sidebar.selectbox("Rank quarter", options=qtrs, index=len(qtrs) - 1, key="rank_qtr")
-    
-        metric_mode = st.sidebar.selectbox("Metric", ["Midpoint (mid)", "Low", "High"], index=0, key="metric_select")
-        per_capita = st.sidebar.checkbox("Normalize by population (per 1,000 residents)", value=False, key="per_capita")
-    
-        snap = df[(df["year"] == rank_year) & (df["qtr"] == rank_qtr)].copy()
-        if state_pick != "(All states)":
-            snap = snap[snap["STATE"].astype(str) == state_pick].copy()
-    
-        # If CBSA selection made, apply it
-        if cbsa_selection:
-            snap = snap.assign(cbsa_label=snap["COUNTY"].astype(str) + " (" + snap["STATE"].astype(str) + ") — " + snap["cbsa"].astype(str))
-            snap = snap[snap["cbsa_label"].isin(cbsa_selection)].copy()
-    
-        value_col = {"Midpoint (mid)": "mid", "Low": "low", "High": "high"}[metric_mode]
-        snap = snap.dropna(subset=[value_col])
-    
-        snap["POP_2022"] = pd.to_numeric(snap["POPESTIMATE2022"], errors="coerce")
-    
-        if per_capita:
-            snap["VALUE"] = np.where(snap["POP_2022"] > 0, (snap[value_col] / snap["POP_2022"]) * 1000.0, np.nan)
-            xlabel = f"{metric_mode} per 1,000 residents (using 2022 population)"
-        else:
-            snap["VALUE"] = snap[value_col]
-            xlabel = metric_mode
-    
-        snap["CBSA_NAME"] = snap["COUNTY"].astype(str) + ", " + snap["STATE"].astype(str)
-    
-        show = snap.sort_values("VALUE", ascending=False)[
-            ["CBSA_NAME", "cbsa", "VALUE", "low", "high", "POP_2022"]
-        ].head(top_n).copy()
-    
-        st.dataframe(show, use_container_width=True)
-    
-        fig = make_barh(
-            show,
-            label_col="CBSA_NAME",
-            value_col="VALUE",
-            title=f"Top {min(top_n, len(show))} CBSAs — {metric_mode} ({rank_year} Q{rank_qtr})" + ("" if state_pick == "(All states)" else f" — {state_pick}"),
-            xlabel=xlabel,
-        )
-        st.pyplot(fig)
-    
-        st.download_button(
-            "Download top-N CSV",
-            show.to_csv(index=False).encode("utf-8"),
-            file_name=f"top_cbsa_debt_{rank_year}_Q{rank_qtr}.csv",
-            mime="text/csv",
-        )
-    
-    # ---------------------------------------------
-    # Debt trends
     # ---------------------------------------------
     elif section == "Debt trends":
         st.subheader("Debt trends over time")
@@ -528,8 +490,47 @@ def render_debt_population():
     
         # Scatter plot
         st.markdown("### Scatter: Population CAGR vs Debt CAGR")
-        fig = make_growth_scatter(growth_df, title="Population CAGR (2020–2022) vs Debt CAGR (selected window)")
-        st.pyplot(fig)
+
+        fig, dfp = make_growth_scatter_plotly(
+            growth_df,
+            title="Population CAGR (2020–2022) vs Debt CAGR (selected window)",
+        )
+
+        # Let user focus a specific point (works everywhere, even if Plotly selection events aren't available)
+        focus = st.selectbox(
+            "Focus a CBSA (highlights the point and shows details)",
+            options=["(None)"] + sorted(dfp["CBSA_NAME"].astype(str).unique().tolist()),
+            index=0,
+            key="scatter_focus",
+        )
+
+        if focus != "(None)":
+            sub = dfp[dfp["CBSA_NAME"].astype(str) == focus].copy()
+            if not sub.empty:
+                r = sub.iloc[0]
+                st.write("**Selected CBSA details**")
+                st.dataframe(
+                    sub[["CBSA_NAME", "cbsa", "bucket", "Debt CAGR (%)", "Pop CAGR (%)", "Gap (pp)", "debt_years", "pop_2020", "pop_2022"]],
+                    use_container_width=True,
+                )
+
+                # Add a highlighted marker overlay
+                import plotly.graph_objects as go
+                fig.add_trace(
+                    go.Scatter(
+                        x=[r["Pop CAGR (%)"]],
+                        y=[r["Debt CAGR (%)"]],
+                        mode="markers+text",
+                        text=["Selected"],
+                        textposition="top center",
+                        marker=dict(size=14, symbol="diamond"),
+                        name="Selected",
+                        showlegend=True,
+                    )
+                )
+
+        # Render interactive plot
+        st.plotly_chart(fig, use_container_width=True)
     
         st.download_button(
             "Download growth table CSV",
