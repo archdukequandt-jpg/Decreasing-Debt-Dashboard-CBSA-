@@ -275,8 +275,8 @@ def render_debt_population():
         st.subheader("Top CBSAs by debt (midpoint)")
     
         # Choose a specific period to rank
-        rank_year = st.sidebar.selectbox("Rank year", options=years, index=len(years, key="rank_year") - 1)
-        rank_qtr = st.sidebar.selectbox("Rank quarter", options=qtrs, index=len(qtrs, key="rank_qtr") - 1)
+        rank_year = st.sidebar.selectbox("Rank year", options=years, index=len(years) - 1, key="rank_year")
+        rank_qtr = st.sidebar.selectbox("Rank quarter", options=qtrs, index=len(qtrs) - 1, key="rank_qtr")
     
         metric_mode = st.sidebar.selectbox("Metric", ["Midpoint (mid)", "Low", "High"], index=0, key="metric_select")
         per_capita = st.sidebar.checkbox("Normalize by population (per 1,000 residents)", value=False, key="per_capita")
