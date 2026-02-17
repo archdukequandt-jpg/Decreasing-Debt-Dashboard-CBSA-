@@ -557,9 +557,6 @@ def render_debt_population():
             mime="text/csv",
         )
 
-if __name__ == "__main__":
-    render_debt_population()
-
 if page == "Home":
     render_home()
 else:
