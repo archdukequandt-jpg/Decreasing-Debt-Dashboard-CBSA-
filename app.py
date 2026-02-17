@@ -239,6 +239,7 @@ def render_debt_population():
         "Select CBSAs (optional, affects Trends/Data Explorer)",
         options=cbsa_options,
         default=[],
+        key="cbsa_selection"
     )
     
     if cbsa_selection:
@@ -274,11 +275,11 @@ def render_debt_population():
         st.subheader("Top CBSAs by debt (midpoint)")
     
         # Choose a specific period to rank
-        rank_year = st.sidebar.selectbox("Rank year", options=years, index=len(years) - 1)
-        rank_qtr = st.sidebar.selectbox("Rank quarter", options=qtrs, index=len(qtrs) - 1)
+        rank_year = st.sidebar.selectbox("Rank year", options=years, index=len(years, key="rank_year") - 1)
+        rank_qtr = st.sidebar.selectbox("Rank quarter", options=qtrs, index=len(qtrs, key="rank_qtr") - 1)
     
-        metric_mode = st.sidebar.selectbox("Metric", ["Midpoint (mid, key="metric_select")", "Low", "High"], index=0)
-        per_capita = st.sidebar.checkbox("Normalize by population (per 1,000 residents)", value=False)
+        metric_mode = st.sidebar.selectbox("Metric", ["Midpoint (mid)", "Low", "High"], index=0, key="metric_select")
+        per_capita = st.sidebar.checkbox("Normalize by population (per 1,000 residents)", value=False, key="per_capita")
     
         snap = df[(df["year"] == rank_year) & (df["qtr"] == rank_qtr)].copy()
         if state_pick != "(All states)":
@@ -501,11 +502,12 @@ def render_debt_population():
             "Show buckets",
             options=counts["bucket"].tolist(),
             default=counts["bucket"].tolist(),
+            key="bucket_pick"
         )
         show = growth_df[growth_df["bucket"].isin(bucket_pick)].copy()
     
         # Rank by divergence
-        rank_mode = st.selectbox("Rank by", ["Largest debt-pop gap", "Fastest debt CAGR", "Fastest population CAGR"], index=0)
+        rank_mode = st.selectbox("Rank by", ["Largest debt-pop gap", "Fastest debt CAGR", "Fastest population CAGR"], index=0, key="rank_mode")
         if rank_mode == "Largest debt-pop gap":
             show = show.sort_values("gap_debt_minus_pop", ascending=False)
         elif rank_mode == "Fastest debt CAGR":
